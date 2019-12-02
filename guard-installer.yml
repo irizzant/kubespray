@@ -1,0 +1,138 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  creationTimestamp: null
+  labels:
+    app: guard
+  name: guard
+  namespace: kube-system
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRole
+metadata:
+  creationTimestamp: null
+  labels:
+    app: guard
+  name: guard
+  namespace: kube-system
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - nodes
+  verbs:
+  - list
+---
+apiVersion: rbac.authorization.k8s.io/v1beta1
+kind: ClusterRoleBinding
+metadata:
+  creationTimestamp: null
+  labels:
+    app: guard
+  name: guard
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: guard
+subjects:
+- kind: ServiceAccount
+  name: guard
+  namespace: kube-system
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  creationTimestamp: null
+  labels:
+    app: guard
+  name: guard
+  namespace: kube-system
+spec:
+  replicas: 1
+  strategy: {}
+  selector: 
+    matchLabels:
+      app: guard
+  template:
+    metadata:
+      annotations:
+        scheduler.alpha.kubernetes.io/critical-pod: ""
+      creationTimestamp: null
+      labels:
+        app: guard
+    spec:
+      containers:
+      - args:
+        - run
+        - --v=3
+        - --tls-ca-file=/etc/guard/pki/ca.crt
+        - --tls-cert-file=/etc/guard/pki/tls.crt
+        - --tls-private-key-file=/etc/guard/pki/tls.key
+        - --auth-providers=gitlab
+        - --gitlab.base-url=http://sdbit-git.sdb.it
+        - --gitlab.use-group-id=false
+        image: appscode/guard:0.4.0
+        name: guard
+        ports:
+        - containerPort: 8443
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8443
+            scheme: HTTPS
+          initialDelaySeconds: 30
+        resources: {}
+        volumeMounts:
+        - mountPath: /etc/guard/pki
+          name: guard-pki
+      nodeSelector:
+        node-role.kubernetes.io/master: ""
+      serviceAccountName: guard
+      tolerations:
+      - key: CriticalAddonsOnly
+        operator: Exists
+      - effect: NoSchedule
+        key: node-role.kubernetes.io/master
+        operator: Exists
+      volumes:
+      - name: guard-pki
+        secret:
+          defaultMode: 365
+          secretName: guard-pki
+status: {}
+---
+apiVersion: v1
+data:
+  ca.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUN1RENDQWFDZ0F3SUJBZ0lCQURBTkJna3Foa2lHOXcwQkFRc0ZBREFOTVFzd0NRWURWUVFERXdKallUQWUKRncweE9URXhNRFl4TXpBME1qSmFGdzB5T1RFeE1ETXhNekEwTWpKYU1BMHhDekFKQmdOVkJBTVRBbU5oTUlJQgpJakFOQmdrcWhraUc5dzBCQVFFRkFBT0NBUThBTUlJQkNnS0NBUUVBdUdTMlQ0Y3dhMFRCK1d0bkdvOFVGMFhjClpzMWhSZDExZVJXa1ByL003YXU5TllUbkNwSlRYY1g2MGJtREMvVVhiekV1K0NldkVXazE0L0VmK3RiTWVkRm4KNWhmWlVsSGNvUFg5dVBNVG9ScE5YUnhRYVBMZUtiOWNDUWJCTldYQjBXdW5zRi9LQTlBWHpwOU1RTVJXdjhLQgo1ZnNOQ25qckZGaFprOGxsc2Nnek9wVUQ2QnF4MGRBOHNjQ3NPQUFyYzdFK0F6UFM5dUQ3T29lbEhLNVZZa2hLCklBOVgvY0h2a2tRb1o3VmtsZEdaOUVwb3B4eVUzejcydWhzRSttdjllUlFYKy84NlRGcVZqRGRsZjNkaGZuOVkKaTQ5QWUySkk5cEpRbFk0aWtwMitFVzZOWTMzdzFwNVVkb08xdFhZSmNNaHVJdHNrb2N6SFgzblo3UVdCa3dJRApBUUFCb3lNd0lUQU9CZ05WSFE4QkFmOEVCQU1DQXFRd0R3WURWUjBUQVFIL0JBVXdBd0VCL3pBTkJna3Foa2lHCjl3MEJBUXNGQUFPQ0FRRUFxQWlxeEpvVjY2Ry9SZ0xHUVhSL1FPU3ZKODFwaGdkTjFiOWVMbEROeXQyOXFHS2sKanFrZXlTbGxGYlFtdndTVWhyaEJrbldISXFFNFdZVG5uejFqNXB4K0FJLzEwK2dqc1I1QnB5VzJvdGdZM2dSOQpVK3V2TVYrMTYrb2MrNFZZTnJvUUkybjJTalZvR29tZ3M1bUxkUTkwY3Z3V3JsVStkSXM5cVZKNFVsNGp4eVgwCkNmRnBobzZ1dkVHNE1EeXZNL2ZZUVpPaTdnK1ZpMnRPSHFRUUdLc1hMVDd4R2FoSjZWZE1mZEh3ckxONmg4QlEKOU4wZjJjeStyZTA2aG9Cb1VoSlJoNFhCRmlwa0E4eHEzaFM1QVA4QXdnS2lPcTZvSFBJczFleWhlc0FRWDFUdQpYeGthQ0Q2VDRKT08zZThhazhsb1R4azNsNXd2UkZQVC9xMFY5dz09Ci0tLS0tRU5EIENFUlRJRklDQVRFLS0tLS0K
+  tls.crt: LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSUM0RENDQWNpZ0F3SUJBZ0lJZTZURHg1Y3JyRHd3RFFZSktvWklodmNOQVFFTEJRQXdEVEVMTUFrR0ExVUUKQXhNQ1kyRXdIaGNOTVRreE1UQTJNVE13TkRJeVdoY05NakF4TVRBMU1UTXdORE16V2pBUk1ROHdEUVlEVlFRRApFd1p6WlhKMlpYSXdnZ0VpTUEwR0NTcUdTSWIzRFFFQkFRVUFBNElCRHdBd2dnRUtBb0lCQVFEVFBoZUo2Rk04CmVDYzlIMDFlVE5iTmVxTFNGU1AxWkUvZDNsQUV5UWlxZDNZYjJTTHNCanY0eXBITGdxNXpjZlRUWGU2elhpT0QKSHlYZUFNWWJFbkR2VzVEc0tFd2hJZVltdHFScnQrTEg5S1IrK2cvSitVN2Fwd1ZFeS9PSllnbTg2bjlGemNWeApUcWFLcGdxMW14MlFnYUhBeTNFUVV4VlhaVUhua2h4TWZNTU10YjBRVFllUTI3UTZuOTZXWndaVU56cCtnUFIxCkUrU0NwZ1FhcFJVeXp0SU1KdEdRdUdvVEU3bURLdXZzaXQ4TmtnOHhtMkZtL3RFaGRBTkN6QmJnQUVVRklFZVkKQndObnBpVzJka0dWLzYxQ2dFaWZHbGZYdjNuWS9GWXgxdDJnNW9vcjJCTDh1ZERIdkI3NEsrK25QeHlKUm9CTgo0RkNUUXBJalAxN2pBZ01CQUFHalFEQStNQTRHQTFVZER3RUIvd1FFQXdJRm9EQVRCZ05WSFNVRUREQUtCZ2dyCkJnRUZCUWNEQVRBWEJnTlZIUkVFRURBT2dnWnpaWEoyWlhLSEJBcnBBQnN3RFFZSktvWklodmNOQVFFTEJRQUQKZ2dFQkFJc1dZRHNyd1kveXVOTytGRWU2eUQveWF4Ny9xU3luem9md1JSWkJUb29wVEJhaUs5OW5HZUNxcndhZQpXbFI5b3RpdHpOaENoY3NEa1Foam9rQVNGYVRjeFdad1MyMytNNjJwQXNMeEJ4bTZoeUxxWFNpTkV5MGtGZk5FCkh6aVQ1aEFmdnROTlR2Y2tETzFjUDdkMG1DUGlpcFlwaitrbzkydndXbW4vMWttanJaeGIzeVlLTE5hRXhKSkEKaThJRStTV1ZxbEpuVHh1UllVT2hSZmF5cU5Sb0c5cTV0aGxJa2ZBYlBiUnJhV0grcjhXRkdMRXVaT2tXK000RgpJcllzNzYvZTU0UjQxSHU4YVUyMVdGM3YxRFNuZVc1ZkhubXpxWExabTNMclNkUUlTSEhQcnBTRDlIMUlOZmlzCmJFNzBSU283VXBJeGFjMGhuZEdiNStkUWE0ND0KLS0tLS1FTkQgQ0VSVElGSUNBVEUtLS0tLQo=
+  tls.key: LS0tLS1CRUdJTiBSU0EgUFJJVkFURSBLRVktLS0tLQpNSUlFcFFJQkFBS0NBUUVBMHo0WGllaFRQSGduUFI5Tlhreld6WHFpMGhVajlXUlAzZDVRQk1rSXFuZDJHOWtpCjdBWTcrTXFSeTRLdWMzSDAwMTN1czE0amd4OGwzZ0RHR3hKdzcxdVE3Q2hNSVNIbUpyYWthN2ZpeC9Ta2Z2b1AKeWZsTzJxY0ZSTXZ6aVdJSnZPcC9SYzNGY1U2bWlxWUt0WnNka0lHaHdNdHhFRk1WVjJWQjU1SWNUSHpERExXOQpFRTJIa051ME9wL2VsbWNHVkRjNmZvRDBkUlBrZ3FZRUdxVVZNczdTRENiUmtMaHFFeE81Z3lycjdJcmZEWklQCk1adGhadjdSSVhRRFFzd1c0QUJGQlNCSG1BY0RaNllsdG5aQmxmK3RRb0JJbnhwWDE3OTUyUHhXTWRiZG9PYUsKSzlnUy9MblF4N3dlK0N2dnB6OGNpVWFBVGVCUWswS1NJejllNHdJREFRQUJBb0lCQVFDVG9Ba0RMNEU3K1J3eQo4dlUydWF4RDNUaDhhSm5BbkdIVVE5RFlCMFl2RzExSENQQUcwalNISWNuUjEzbmk0L2ljM2tBNnljYzNrMFQ3CmFMOEpuRkdnZFBWS2xMN2ZTTGwyeEowVFNtY0tKa1h2RndLQnUrRUhuVUZwV3I3UGU5d2lVaDZ2d2FZQ0VWMEIKK0JmejRucyt5ZGtveXdRd3pGOVZ2RVhhZDVtZk9TdTRnbmhBTlFMbHMzWlRqSk1TSUVWd0dBSmR6Q0toSG1KZAo2ZVMwWWJHT0x5Rmx0T0NaUGNBYmdPUDlaRFpDeTVXd011bFZWbkZnZU00YnNlQmpQLzJXMGRqbkxNeGxQNWJaCmdURzA2a2FHZUlMRXZwdXBicGZMYVVjU0ZUK2RUWkNVSFdGYVk5Q1BxVkgzeEl0VGtoWFJmOURmeG9ONjFkbnIKWnpLOHFiNkJBb0dCQU5tdGpVY0JaWTUzekZaWjhvM2t4KzF2YUwxT3AxeHRaaEFOVlorU1l1bFhqTG4wbkJUWApaU2ZQNlpCRUZXRDliZ09hYWVOa0o4RHJ4YXZZd1RNOG12WENHTjJGY3JtZW9ZQ3p6YWVCdTh5VHN0THJ6eXVJClBUYlgxemxKdW5sMmVzYXFmQWNoU2didnJYUXZvTGN4NGhjTFkxVzFOdnJqcnRFTklHYUJPVHpyQW9HQkFQaHUKZ1h5ZDFaUE05bGtOeDRiT3dmcHdwZlpoUlF0ZVNkNnNtcWJQcmR2K2ZaMFljaWNkT3ZodDBYM25XWlNOdGVyOQphbm9DZkh6a3Nrb21UOVU2TWRjUzBVVjJ5dExlMEJkSngxbEg3eDBNVW05N2ZFMDBJK2hndGpOd1lRVVlwMFQzClVtRWFXd0pxNWFEZW9mdlVRUjVrQlhCWmZ6K21heWZJcWpVWFZZZnBBb0dCQU1xQ1JVN3JvN2w1QmliSG8zb1MKZjFVTE1wdjdrb1BRV3dWUUFucGp5NVZlRjlQZ0YxemtUbjFOVmZNYkEvQ3BsVEhROC9YU2RaRnJSd2pxckVLbwpmVmxwYTR5YTIvS0grNlFxb29iVmtRdHYxUXVZeWJHc0c1YnNFcFIvWFBZbkhXMjVxWTFRa1BnRy9vMTZ5Yi9rCnJudlY0bUlZSnNBZUZjTHl2VlBmb0lwbEFvR0FJRm1UZHZ5K2tRNkJqYnNqbmtSU01pQjFIQTR5aFhaenZCRlIKMmlMMUNzNnE0TWdNSlZmREZCS0kweEpMTWZMNkcyMkFiZjdnNHdxTXhPY1VRam5mdjVmdHRGUHh1Vi9XVFJJSQphWEhhaXpmTmpFTFNQdU5wUVp0R1hwQmxzZG94L2VNTzBTSXpjNjhqMDd6cDd2Y0d1OFJlaVBDK2h6Vk9ndEc0CmlFMVBqL0VDZ1lFQXVxUFRHTHI2QkQvQmJzN2xzLzdIY2V3Z0JhYU5mNmgrV0piWGVtdGhCUzRsSkxaVVI5a1IKUk1QOWdyTHpYSm96Q1ZOSm5xL3IzUi9WZFVwdlpiZkU4SFFBZm42U3E2dzdlalNNN1c4N1k1R3NnL2J1VWFjTQpqK2h1SG1EY1kwczF6UFdNVktnSk1NWWVJaldia3IyOXBRNHQ1MDJUZW9BWlJWeWVPS2NDeDdvPQotLS0tLUVORCBSU0EgUFJJVkFURSBLRVktLS0tLQo=
+kind: Secret
+metadata:
+  creationTimestamp: null
+  labels:
+    app: guard
+  name: guard-pki
+  namespace: kube-system
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    app: guard
+  name: guard
+  namespace: kube-system
+spec:
+  clusterIP: 10.233.0.27
+  ports:
+  - name: api
+    port: 443
+    protocol: TCP
+    targetPort: 8443
+  selector:
+    app: guard
+  type: ClusterIP
+status:
+  loadBalancer: {}
+
