@@ -1,0 +1,51 @@
+all:
+  hosts:
+    sdbfi-k8s-master1:
+      ansible_host: 10.101.1.172
+      ip: 10.101.1.172
+      access_ip: 10.101.1.172
+    sdbfi-k8s-master2:
+      ansible_host: 10.101.1.173
+      ip: 10.101.1.173
+      access_ip: 10.101.1.173
+    sdbfi-k8s-master3:
+      ansible_host: 10.101.1.174
+      ip: 10.101.1.174
+      access_ip: 10.101.1.174
+    sdbfi-k8s-worker1:
+      ansible_host: 10.101.1.175
+      ip: 10.101.1.175
+      access_ip: 10.101.1.175
+    sdbfi-k8s-worker2:
+      ansible_host: 10.101.1.176
+      ip: 10.101.1.176
+      access_ip: 10.101.1.176
+    sdbfi-k8s-worker3:
+      ansible_host: 10.101.1.177
+      ip: 10.101.1.177
+      access_ip: 10.101.1.177
+  children:
+    kube-master:
+      hosts:
+        sdbfi-k8s-master1:
+        sdbfi-k8s-master2:
+        sdbfi-k8s-master3:
+    kube-node:
+      hosts:
+        sdbfi-k8s-master1:
+        sdbfi-k8s-master2:
+        sdbfi-k8s-master3:
+        sdbfi-k8s-worker1:
+        sdbfi-k8s-worker2:
+        sdbfi-k8s-worker3:
+    etcd:
+      hosts:
+        sdbfi-k8s-master1:
+        sdbfi-k8s-master2:
+        sdbfi-k8s-master3:
+    k8s-cluster:
+      children:
+        kube-master:
+        kube-node:
+    calico-rr:
+      hosts: {}
